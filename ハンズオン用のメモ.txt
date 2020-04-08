@@ -1,0 +1,10 @@
+・顧客リスト(freee & kintone BizTech hack)
+　URL：https://fk-biztech.cybozu.com/k/**/
+　Client ID：
+　Client Secret：　
+
+・見積書(freee & kintone BizTech hack)
+　URL：https://fk-biztech.cybozu.com/k/**/
+　Client ID：
+　Client Secret：　
+
