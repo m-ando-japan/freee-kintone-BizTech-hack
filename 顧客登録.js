@@ -2,11 +2,11 @@
 /* eslint-disable quotes */
 /*
  * プログラム名：顧客登録
- * サブドメイン：freee & kintone BizTech hackハンズオン用
- * 内容説明：・レコード一覧画面が表示されたら発動し、freeeアプリへOAuthへアクセストークンを取得するリクエストを送信。
+ * サブドメイン：fk-biztech
+ * 内容説明：・レコード一覧画面が表示されたら発動し、freeeアプリへアクセストークンを取得するOauth経由のリクエストを送信。
  *          ・レコード詳細画面でヘッダスペースに表示された文字列がクリックされると発動する。
- *          　freeeアプリへOAuthへアクセストークンを確認し、
- *          　stateのパラメータとともに確認できた場合、
+ *          　freeeアプリへOAuth経由でアクセストークンを確認し、
+ *          　stateのパラメータとともに整合性を確認できた場合、
  *          　freee APIのcompaniesエンドポイントから事業所を取得する。表示名が「APIチームデモアカウント（100名招待可）」の事業所IDを取得する。
  *          　freee APIのpartnersエンドポイントから取引先をkintoneの「レコード番号」フィールドを基を取得する。
  *          　もしfreee APIに存在する場合(codeがkintoneの「取引先コード」フィールドと等しい場合)はPUTで更新する。更新フィールドはデモ環境なので会社名のみ。
@@ -63,7 +63,11 @@
 					case 400:
 					case 401:
 					case 402:
+						alert('error:' + status);
+						break;
 					case 403:
+						alert('error:403(このアプリケーションにはアクセス権限がないエンドポイントです)');
+						break;
 					case 404:
 						alert('error:' + status);
 						break;
@@ -100,7 +104,11 @@
 					case 400:
 					case 401:
 					case 402:
+						alert('error:' + status);
+						break;
 					case 403:
+						alert('error:403(このアプリケーションにはアクセス権限がないエンドポイントです)');
+						break;
 					case 404:
 						alert('error:' + status);
 						break;

@@ -1,11 +1,11 @@
 /* eslint-disable linebreak-style */
 /*
  * プログラム名：取引登録
- * サブドメイン：freee & kintone BizTech hackハンズオン用
- * 内容説明：・レコード一覧画面が表示されたら発動し、freeeアプリへOAuthへアクセストークンを取得するリクエストを送信。
+ * サブドメイン：fk-biztech
+ * 内容説明：・レコード一覧画面が表示されたら発動し、freeeアプリへアクセストークンを取得するOauth経由のリクエストを送信。
  *          ・レコード詳細画面でステータスが「請求済」まで進んだら発動する。
- *          　freeeアプリへOAuthへアクセストークンを確認し、
- *          　stateのパラメータとともに確認できた場合、
+ *          　freeeアプリへOAuth経由でアクセストークンを確認し、
+ *          　stateのパラメータとともに整合性を確認できた場合、
  *          　freee APIのcompaniesエンドポイントから事業所を取得する。表示名が「APIチームデモアカウント（100名招待可）」の事業所IDを取得する
  *          　freee APIのdealsエンドポイントに対してPOSTで追加する。
  *          　デモ環境なので追加する項目は以下のみとする。
@@ -86,7 +86,11 @@
 					case 400:
 					case 401:
 					case 402:
+						alert('error:' + status);
+						break;
 					case 403:
+						alert('error:403(このアプリケーションにはアクセス権限がないエンドポイントです)');
+						break;
 					case 404:
 						alert('error:' + status);
 						break;
@@ -149,16 +153,16 @@
 					.indexOf('l.state=' + sessionStorage.getItem('statestring')) >= 0
 			) {
 				sessionStorage.setItem(
-					'accesstoken',
+					'accesstoken_deal',
 					decodeURIComponent(results[1].replace(/\+/g, ' '))
 				);
-				accesstoken = sessionStorage.getItem('accesstoken');
+				accesstoken = sessionStorage.getItem('accesstoken_deal');
 				callback();
 			} else {
 				alert('freee上の認証を済ませてください');
 			}
 		} else {
-			if (!sessionStorage.getItem('accesstoken')) {
+			if (!sessionStorage.getItem('accesstoken_deal')) {
 				//セッションストレージ内にaccesstokenというキーがない場合
 				const params = {
 					app: kintone.app.getLookupTargetAppId('freee認証'),
@@ -196,7 +200,7 @@
 					}
 				);
 			} else {
-				accesstoken = sessionStorage.getItem('accesstoken');
+				accesstoken = sessionStorage.getItem('accesstoken_deal');
 				callback();
 			}
 		}
