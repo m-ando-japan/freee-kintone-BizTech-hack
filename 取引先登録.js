@@ -1,19 +1,18 @@
 /* eslint-disable linebreak-style */
+/* eslint-disable quotes */
 /*
- * プログラム名：取引登録
+ * プログラム名：取引先登録
  * サブドメイン：fk-biztech
  * 内容説明：・レコード一覧画面が表示されたら発動し、freeeアプリへアクセストークンを取得するOauth経由のリクエストを送信。
  *            アクセストークンの取得の際に使用するclient_idはfreee認証用アプリからレコードを取得し、そのフィールドの値を使用する。
- *          ・レコード詳細画面でステータスが「請求済」まで進んだら発動する。
+ *          ・レコード詳細画面でヘッダスペースに表示された文字列がクリックされると発動する。
  *          　freeeアプリへOAuth経由でアクセストークンを確認し、
  *          　stateのパラメータとともに整合性を確認できた場合、
- *          　freee APIのcompaniesエンドポイントから事業所を取得する。表示名が「APIチームデモアカウント（100名招待可）」の事業所IDを取得する
- *          　freee APIのdealsエンドポイントに対してPOSTで追加する。
- *          　デモ環境なので追加する項目は以下のみとする。
- *          　issue_date(発生日)、type(収支区分)、company_id(事業所ID)、partner_code(取引先コード)、
- *          　detail(tax_code(税区分コード)、account_item_id(勘定科目ID)、amount(取引金額))のみを修正する。
- *          　account_item_id(勘定科目ID)は365746891(売掛金)、tax_code(税区分コード)は21(課税売上)を固定でPOSTリクエストに含める。
- * 対象アプリ：取引管理(freee & kintone BizTech hack) アプリID：変動
+ *          　freee APIのcompaniesエンドポイントから事業所を取得する。表示名が「APIチームデモアカウント（100名招待可）」の事業所IDを取得する。
+ *          　freee APIのpartnersエンドポイントから取引先をkintoneの「レコード番号」フィールドを基を取得する。
+ *          　もしfreee APIに存在する場合(codeがkintoneの「取引先コード」フィールドと等しい場合)はPUTで更新する。更新フィールドはデモ環境なので会社名のみ。
+ *          　もしfreee APIに存在しない場合はPOSTで追加する。codeにkintoneの「取引先コード」フィールドを設定する。
+ * 対象アプリ：取引先リスト(freee & kintone BizTech hack) アプリID：変動
  * 参照先アプリ：freee認証用(freee & kintone BizTech hack) アプリID：変動
  * 参照先ライブラリ：https://js.cybozu.com/jquery/3.4.1/jquery.min.js
  * 備考：
@@ -45,40 +44,18 @@
 		return chars.join('');
 	};
 
-	const Builddate = function () {
-		var dt = new Date();
-		var y = dt.getFullYear();
-		var m = ('00' + (dt.getMonth() + 1)).slice(-2);
-		var d = ('00' + dt.getDate()).slice(-2);
-		var result = y + '-' + m + '-' + d;
-		return result;
-	};
-
-	const Postdeals = function (record) {
-		const DeteilData = function (record) {
-			let putDetailRecords = [];
-			for (let row = 0; row < record.見積明細.value.length; row++) {
-				putDetailRecords[row] = {
-					tax_code: 129,
-					account_item_id: 365746891,
-					amount: record.見積明細.value[row].value.小計.value,
-				};
-			}
-			return putDetailRecords;
-		};
+	const PostPartner = function (record) {
 		const authparams = {
 			Authorization: 'Bearer ' + accesstoken,
 			'Content-Type': 'application/json',
 		};
 		const requestbody = {
-			issue_date: Builddate(),
-			type: 'income',
 			company_id: companyid,
-			partner_code: record.取引先コード.value,
-			details: DeteilData(record),
+			name: record.会社名.value,
+			code: record.取引先コード.value,
 		};
 		kintone.proxy(
-			'https://api.freee.co.jp/api/1/deals',
+			'https://api.freee.co.jp/api/1/partners',
 			'POST',
 			authparams,
 			requestbody,
@@ -99,7 +76,7 @@
 						alert('Internal Server Error');
 						break;
 					default:
-						alert('freeeへ取引を追加しました。');
+						alert('freeeへ取引先を追加しました。');
 						break;
 				}
 			},
@@ -109,29 +86,76 @@
 		);
 	};
 
-	const GetCompany = function (record) {
+	const PutPartner = function (record, id) {
+		const authparams = {
+			Authorization: 'Bearer ' + accesstoken,
+			'Content-Type': 'application/json',
+		};
+		const requestbody = {
+			company_id: companyid,
+			name: record.会社名.value,
+		};
+		kintone.proxy(
+			'https://api.freee.co.jp/api/1/partners/' + id,
+			'PUT',
+			authparams,
+			requestbody,
+			function (body, status, headers) {
+				switch (status) {
+					case 400:
+					case 401:
+					case 402:
+						alert('error:' + status);
+						break;
+					case 403:
+						alert('error:403(このアプリケーションにはアクセス権限がないエンドポイントです)');
+						break;
+					case 404:
+						alert('error:' + status);
+						break;
+					case 500:
+						alert('Internal Server Error');
+						break;
+					default:
+						alert('freeeへ取引先を更新しました。');
+						break;
+				}
+			},
+			function (error) {
+				alert('freeeへの接続に失敗しました。');
+			}
+		);
+	};
+
+	const GetPartner = function (record) {
 		const authparams = {
 			Authorization: 'Bearer ' + accesstoken,
 		};
+		const querybody = {};
 		kintone.proxy(
-			'https://api.freee.co.jp/api/1/companies',
+			'https://api.freee.co.jp/api/1/partners?id=' +
+				record.取引先コード.value +
+				'&company_id=' +
+				companyid,
 			'GET',
 			authparams,
-			{},
+			querybody,
 			function (body, status, headers) {
 				if (status == 200) {
 					const respbody = JSON.parse(body);
-					if (respbody.companies.length > 0) {
-						for (let step = 0; step < respbody.companies.length; step++) {
-							if (
-								respbody.companies[step].display_name ===
-								'APIチームデモアカウント（100名招待可）'
-							) {
-								//複数事業所に属するアカウントの場合でも強制的にAPIチームデモアカウント（100名招待可）を使用する
-								companyid = respbody.companies[step].id;
-								Postdeals(record);
+					if (respbody.partners.length > 0) {
+						let flg = false;
+						for (let step = 0; step < respbody.partners.length; step++) {
+							if (respbody.partners[step].code === record.取引先コード.value) {
+								flg = true;
+								PutPartner(record, respbody.partners[step].id);
 							}
 						}
+						if (!flg) {
+							PostPartner(record);
+						}
+					} else {
+						PostPartner(record);
 					}
 				}
 			},
@@ -141,6 +165,44 @@
 		);
 	};
 
+	const GetCompany = function (record) {
+		const headerspace = kintone.app.record.getHeaderMenuSpaceElement();
+		const clickbutton = document.createElement('button');
+		clickbutton.textContent = '取引先の作成';
+		clickbutton.onclick = function () {
+			const authparams = {
+				Authorization: 'Bearer ' + accesstoken,
+			};
+			kintone.proxy(
+				'https://api.freee.co.jp/api/1/companies',
+				'GET',
+				authparams,
+				{},
+				function (body, status, headers) {
+					if (status == 200) {
+						const respbody = JSON.parse(body);
+						if (respbody.companies.length > 0) {
+							for (let step = 0; step < respbody.companies.length; step++) {
+								if (
+									respbody.companies[step].display_name ===
+									'APIチームデモアカウント（100名招待可）'
+								) {
+									//複数事業所に属するアカウントの場合でも強制的にAPIチームデモアカウント（100名招待可）を使用する
+									companyid = respbody.companies[step].id;
+									GetPartner(record);
+								}
+							}
+						}
+					}
+				},
+				function (error) {
+					alert('freeeへの接続に失敗しました。');
+				}
+			);
+		};
+		headerspace.appendChild(clickbutton);
+	};
+
 	const GetAccessToken = function (callback) {
 		const regex = new RegExp('access_token=([^&#]*)');
 		const results = regex.exec(window.location.href);
@@ -148,33 +210,33 @@
 			// 認証を済ませて戻ってきたときに通るステップ
 			if (
 				window.location.href.split('&state=')[1] ===
-					sessionStorage.getItem('statestring') ||
+				sessionStorage.getItem('statestring') ||
 				window.location.href
-					.split('&')
-					.indexOf('l.state=' + sessionStorage.getItem('statestring')) >= 0
+				.split('&')
+				.indexOf('l.state=' + sessionStorage.getItem('statestring')) >= 0
 			) {
 				sessionStorage.setItem(
-					'accesstoken_deal',
+					'accesstoken',
 					decodeURIComponent(results[1].replace(/\+/g, ' '))
 				);
-				accesstoken = sessionStorage.getItem('accesstoken_deal');
+				accesstoken = sessionStorage.getItem('accesstoken');
 				callback();
 			} else {
 				alert('freee上の認証を済ませてください');
 			}
 		} else {
-			if (!sessionStorage.getItem('accesstoken_deal')) {
+			if (!sessionStorage.getItem('accesstoken')) {
 				//セッションストレージ内にaccesstokenというキーがない場合
 				const params = {
 					app: kintone.app.getLookupTargetAppId('freee認証'),
-					query: 'freee対象アプリ in ("取引作成用") limit 1',
+					query: 'freee対象アプリ in ("取引先作成用") limit 1',
 				};
 				kintone.api(
 					kintone.api.url('/k/v1/records', true),
 					'GET',
 					params,
 					function (resp) {
-						//freee認証用アプリに複数行の見積作成用が登録されていても1件しか取得しない。
+						//freee認証用アプリに複数行の取引先作成用が登録されていても1件しか取得しない。
 						const redirecturi =
 							kintone.api.url('/k/', true).replace('.json', '') +
 							kintone.app.getId() +
@@ -191,7 +253,7 @@
 							window.location.href = authurl; //ここでリダイレクトします
 						} else {
 							alert(
-								'freee認証用アプリに取引作成用の認証レコードが登録されていません'
+								'freee認証用アプリに取引先作成用の認証レコードが登録されていません'
 							);
 						}
 					},
@@ -201,23 +263,20 @@
 					}
 				);
 			} else {
-				accesstoken = sessionStorage.getItem('accesstoken_deal');
+				accesstoken = sessionStorage.getItem('accesstoken');
 				callback();
 			}
 		}
 	};
 
-	let eventslist = ['app.record.detail.process.proceed'];
+	let eventslist = ['app.record.detail.show'];
 	kintone.events.on(eventslist, function (event) {
-		const nStatus = event.nextStatus.value;
 		if (!sessionStorage) {
 			alert('ブラウザが古いです');
 			return event;
 		}
 		GetAccessToken(function () {
-			if (nStatus === '請求済') {
-				GetCompany(event.record);
-			}
+			GetCompany(event.record);
 		});
 		return event;
 	});
